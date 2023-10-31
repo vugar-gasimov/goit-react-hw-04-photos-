@@ -6,8 +6,12 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode basename="/vugar-gasimov/">
+  <>
     <App />
     <ToastContainer autoClose={1000} />
-  </React.StrictMode>
+  </>
 );
+//  <React.StrictMode basename="/vugar-gasimov/">
+//    <App />
+//    <ToastContainer autoClose={1000} />
+//  </React.StrictMode>;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { FcLike } from 'react-icons/fc';
 import {
@@ -15,67 +15,60 @@ import {
 } from './Modal.Styled';
 import propTypes from 'prop-types';
 
-export class Modal extends React.Component {
-  intervalId = null;
-  timeoutId = null;
-
-  static propTypes = {
-    close: propTypes.func.isRequired,
-    selectedPhoto: propTypes.object.isRequired,
-  };
-
-  handleKeyDown = e => {
+export const Modal = ({ selectedPhoto, close, next, back }) => {
+  const handleKeyDown = e => {
     if (e.key === 'Escape') {
-      this.props.close();
+      close();
       toast.info('Modal closed by Escape');
     }
   };
 
-  componentDidMount() {
-    document.addEventListener('keydown', this.handleKeyDown);
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
-  }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'visible';
+    };
+  }, [close]);
 
-  componentWillUnmount() {
-    document.removeEventListener('keydown', this.handleKeyDown);
-    document.body.style.overflow = 'visible';
-  }
-
-  handleClickOutside = ({ target, currentTarget }) => {
+  const handleClickOutside = ({ target, currentTarget }) => {
     if (target === currentTarget) {
-      this.props.close();
+      close();
       toast.info('Modal closed by click on backdrop');
     }
   };
+  return (
+    <StyledWrapper onClick={handleClickOutside}>
+      <RightCenterButton onClick={next}>→</RightCenterButton>
+      <LeftCenterButton onClick={back}>←</LeftCenterButton>
+      <UnderPhotoButton onClick={close}>✕</UnderPhotoButton>
 
-  render() {
-    const { selectedPhoto, close } = this.props;
-
-    return (
-      <StyledWrapper onClick={this.handleClickOutside}>
-        <RightCenterButton onClick={this.props.next}>→</RightCenterButton>
-        <LeftCenterButton onClick={this.props.back}>←</LeftCenterButton>
-        <UnderPhotoButton onClick={close}>✕</UnderPhotoButton>
-
+      <div>
         <div>
-          <div>
-            <ImageContainer>
-              <StyledImage
-                src={selectedPhoto.largeImageURL}
-                alt={selectedPhoto.tags}
-              />
-              <ImageInfo>
-                <Title>{selectedPhoto.tags}</Title>
-                <LikeButton>
-                  <FcLike />
-                  {selectedPhoto.likes}
-                </LikeButton>
-                <DeleteButton>Delete</DeleteButton>
-              </ImageInfo>
-            </ImageContainer>
-          </div>
+          <ImageContainer>
+            <StyledImage
+              src={selectedPhoto.largeImageURL}
+              alt={selectedPhoto.tags}
+            />
+            <ImageInfo>
+              <Title>{selectedPhoto.tags}</Title>
+              <LikeButton>
+                <FcLike />
+                {selectedPhoto.likes}
+              </LikeButton>
+              <DeleteButton>Delete</DeleteButton>
+            </ImageInfo>
+          </ImageContainer>
         </div>
-      </StyledWrapper>
-    );
-  }
-}
+      </div>
+    </StyledWrapper>
+  );
+};
+
+Modal.propTypes = {
+  close: propTypes.func.isRequired,
+  selectedPhoto: propTypes.object.isRequired,
+  next: propTypes.func.isRequired,
+  back: propTypes.func.isRequired,
+};

@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ImageGallery } from './Image-finder/ImageGallery';
 import { Searchbar } from './Image-finder/Searchbar';
 import { LoadMoreButton } from './Image-finder/Button';
 import { Modal } from './Modal-window/Modal';
-
 import { fetchPics } from '../Services/api';
 import { toast } from 'react-toastify';
 import { Blocks } from 'react-loader-spinner';
+
 import {
   AppContainer,
   TitleContainer,
@@ -14,155 +14,142 @@ import {
   GalleryTitle,
   LoaderContainer,
 } from './App.Styled';
-import { INITIAL_STATE_POSTS } from './Image-finder/InitialState.js';
-export class App extends React.Component {
-  state = { ...INITIAL_STATE_POSTS };
-  async componentDidMount() {
-    this.getPhotos();
-    toast.info('Welcome');
-  }
 
-  async componentDidUpdate(_, prevState) {
-    const { page, q } = this.state;
-    if (prevState.page !== page || q !== prevState.q) {
-      this.setState({ loading: true }, () => {
-        this.getPhotos();
-        toast.info('Nice photos ha');
-      });
-    }
-  }
+// import { INITIAL_STATE_POSTS } from './Image-finder/InitialState.js';
 
-  handleLoadMore = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
-  };
+export const App = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [isOpened, setIsOpened] = useState(false);
+  const [total, setTotal] = useState(null);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [page, setPage] = useState(1);
+  const [per_page, setPer_page] = useState(12);
+  const [q, setQ] = useState('');
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  getPhotos = async () => {
-    const { per_page, page, q } = this.state;
-    this.setState({ loading: true });
-
-    try {
-      const response = await fetchPics({
-        per_page,
-        page,
-        q,
-      });
-      if (response.total === undefined || response.total <= 0) {
-        this.setState({
-          error: 'Total count is missing or invalid',
-          loading: false,
+  useEffect(() => {
+    console.log('componentDidMount');
+  }, []);
+  useEffect(() => {
+    console.log('ComponentDidUpdate');
+    const getPhotos = async () => {
+      setLoading(true);
+      try {
+        const response = await fetchPics({
+          per_page,
+          page,
+          q,
         });
-        toast.error('Total count is missing or invalid');
-        return;
+        if (response.total === undefined || response.total <= 0) {
+          setError('Total count is missing or invalid');
+          setLoading(false);
+
+          toast.error('Total count is missing or invalid');
+        } else {
+          setPhotos(prev => [...prev, ...response.hits]);
+          setTotal(response.total);
+          setLoading(false);
+        }
+      } catch (error) {
+        setError(error.message);
+        toast.error(error.message);
+      } finally {
+        setLoading(false);
       }
-      this.setState(prevState => ({
-        photos: [...prevState.photos, ...response.hits],
-        total: response.total,
-        loading: false,
-      }));
-    } catch (error) {
-      this.setState({ error: error.message });
-      toast.error(error.message);
-    } finally {
-      this.setState({ loading: false });
-    }
-  };
-  handleSetQuery = q => {
-    this.setState({ q, photos: [], total: null });
-  };
-  toggleModal = photo => {
-    this.setState(prevState => {
-      const isOpened = !prevState.isOpened;
-      if (isOpened) {
-        toast.success('Wow what a beauty 😁');
-      } else {
-        toast.success("Let's choose another photo 😁");
-      }
-      return {
-        isOpened,
-        currentPhotoIndex: prevState.photos.indexOf(photo),
-      };
-    });
+    };
+    getPhotos();
+  }, [page, q]);
+
+  const handleLoadMore = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  handleLikes = photo => {
-    this.setState(prevState => ({
-      photos: prevState.photos.map(el =>
-        el.id === photo.id ? { ...el, likes: el.likes + 1 } : el
-      ),
-    }));
+  const handleSetQuery = q => {
+    setQ(q);
+    setPhotos([]);
+    setTotal(null);
+    setPage(1);
   };
-  handleNext = () => {
-    const { currentPhotoIndex, photos } = this.state;
-
-    // Check if photos is an array and not undefined
-    if (Array.isArray(photos) && photos.length > 0) {
-      this.setState({
-        currentPhotoIndex: (currentPhotoIndex + 1) % photos.length,
-      });
+  const toggleModal = photo => {
+    setIsOpened(prev => !prev);
+    if (isOpened) {
+      toast.success('Wow what a beauty 😁');
     } else {
-      console.error('No photos or invalid photos array!');
+      toast.success("Let's choose another photo 😁");
     }
+    return {
+      isOpened,
+      currentPhotoIndex: photos.indexOf(photo),
+    };
   };
-  handleBack = () => {
-    const { currentPhotoIndex, photos } = this.state;
 
-    // Check if photos is an array and not undefined
-    if (Array.isArray(photos) && photos.length > 0) {
-      this.setState({
-        currentPhotoIndex: (currentPhotoIndex - 1) % photos.length,
-      });
-    } else {
-      console.error('No photos or invalid photos array!');
-    }
-  };
-  render() {
-    const { photos, q, total, loading, isOpened, currentPhotoIndex } =
-      this.state;
-    const selectedPhoto = photos[currentPhotoIndex];
-
-    return (
-      <AppContainer>
-        <TitleContainer>React homework template</TitleContainer>
-        <ContentContainer>
-          <Searchbar setQuery={this.handleSetQuery} />
-          {q && (
-            <GalleryTitle>
-              Image Gallery search request: {q} and results: {total}
-            </GalleryTitle>
-          )}
-          <h2>{this.state.error}</h2>
-          {loading && !photos.length ? (
-            <LoaderContainer>
-              <Blocks
-                visible={true}
-                height="80"
-                width="80"
-                ariaLabel="blocks-loading"
-                wrapperStyle={{}}
-                wrapperClass="blocks-wrapper"
-              />
-            </LoaderContainer>
-          ) : (
-            <ImageGallery
-              photos={photos}
-              handleLikes={this.handleLikes}
-              toggleModal={this.toggleModal}
-            />
-          )}
-          {total > photos.length ? (
-            <LoadMoreButton loading={loading} onClick={this.handleLoadMore} />
-          ) : null}
-          {isOpened && selectedPhoto ? (
-            <Modal
-              close={this.toggleModal}
-              selectedPhoto={selectedPhoto}
-              next={this.handleNext}
-              back={this.handleBack}
-              changePhoto={index => this.setState({ currentPhotoIndex: index })}
-            />
-          ) : null}
-        </ContentContainer>
-      </AppContainer>
+  const handleLikes = photo => {
+    setPhotos(prev =>
+      prev.map(el => (el.id === photo.id ? { ...el, likes: el.likes + 1 } : el))
     );
-  }
-}
+  };
+  const handleNext = () => {
+    if (Array.isArray(photos) && photos.length > 0) {
+      setCurrentPhotoIndex((currentPhotoIndex + 1) % photos.length);
+    } else {
+      console.error('No photos or invalid photos array!');
+    }
+  };
+
+  const handleBack = () => {
+    if (Array.isArray(photos) && photos.length > 0) {
+      setCurrentPhotoIndex((currentPhotoIndex - 1) % photos.length);
+    } else {
+      console.error('No photos or invalid photos array!');
+    }
+  };
+
+  return (
+    <AppContainer>
+      <TitleContainer>React homework template</TitleContainer>
+      <ContentContainer>
+        <Searchbar setQuery={handleSetQuery} />
+        {q && (
+          <GalleryTitle>
+            Image Gallery search request: {q} and results: {total}
+          </GalleryTitle>
+        )}
+        <h2>{error}</h2>
+        {loading && !photos.length ? (
+          <LoaderContainer>
+            <Blocks
+              visible={true}
+              height="80"
+              width="80"
+              ariaLabel="blocks-loading"
+              wrapperStyle={{}}
+              wrapperClass="blocks-wrapper"
+            />
+          </LoaderContainer>
+        ) : (
+          <ImageGallery
+            photos={photos}
+            handleLikes={handleLikes}
+            toggleModal={() => {
+              setIsOpened(!isOpened);
+            }}
+          />
+        )}
+        {total > photos.length ? (
+          <LoadMoreButton loading={loading} onClick={handleLoadMore} />
+        ) : null}
+        {isOpened && selectedPhoto ? (
+          <Modal
+            close={() => setIsOpened(false)}
+            selectedPhoto={selectedPhoto}
+            next={handleNext}
+            back={handleBack}
+            changePhoto={index => setCurrentPhotoIndex(index)}
+          />
+        ) : null}
+      </ContentContainer>
+    </AppContainer>
+  );
+};
