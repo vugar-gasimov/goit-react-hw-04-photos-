@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
 import { ImageGallery } from './Image-finder/ImageGallery';
 import { Searchbar } from './Image-finder/Searchbar';
 import { LoadMoreButton } from './Image-finder/Button';
@@ -14,28 +14,26 @@ import {
   GalleryTitle,
   LoaderContainer,
 } from './App.Styled';
-
-// import { INITIAL_STATE_POSTS } from './Image-finder/InitialState.js';
+import { initialState, photosReducer } from 'Store/reducer';
 
 export const App = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [isOpened, setIsOpened] = useState(false);
-  const [total, setTotal] = useState(null);
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [page, setPage] = useState(1);
-  const [per_page, setPer_page] = useState(12);
-  const [q, setQ] = useState('');
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-
+  const [state, dispatch] = useReducer(photosReducer, initialState);
+  const {
+    loading,
+    error,
+    photos,
+    isOpened,
+    total,
+    selectedPhoto,
+    page,
+    per_page,
+    q,
+    currentPhotoIndex,
+  } = state;
   useEffect(() => {
     console.log('componentDidMount');
-  }, []);
-  useEffect(() => {
-    console.log('ComponentDidUpdate');
-    const getPhotos = async () => {
-      setLoading(true);
+    const getPhotos = async ({ page, q }) => {
+      dispatch({ type: 'leading', payload: true });
       try {
         const response = await fetchPics({
           per_page,
@@ -44,36 +42,42 @@ export const App = () => {
         });
         if (response.total === undefined || response.total <= 0) {
           setError('Total count is missing or invalid');
-          setLoading(false);
+          dispatch({ type: 'leading', payload: false });
 
           toast.error('Total count is missing or invalid');
         } else {
-          setPhotos(prev => [...prev, ...response.hits]);
-          setTotal(response.total);
-          setLoading(false);
+          // setPhotos(prev => [...prev, ...response.hits]);
+          dispatch({ type: 'setPhotos', payload: photos });
+          // setTotal(response.total);
+          dispatch({ type: 'setTotal', payload: response.total });
+          // setLoading(false);
+          dispatch({ type: 'leading', payload: false });
         }
       } catch (error) {
-        setError(error.message);
+        // setError(error.message);
+        dispatch({ type: 'error', payload: error.message });
         toast.error(error.message);
       } finally {
-        setLoading(false);
+        // setLoading(false);
+        dispatch({ type: 'loading', payload: false });
       }
     };
-    getPhotos();
+    getPhotos() && q;
   }, [page, q]);
 
+  useEffect(() => {
+    error && toast.error(error);
+  }, [error]);
+
   const handleLoadMore = () => {
-    setPage(prevPage => prevPage + 1);
+    dispatch({ type: loadMore });
   };
 
   const handleSetQuery = q => {
-    setQ(q);
-    setPhotos([]);
-    setTotal(null);
-    setPage(1);
+    dispatch({ type: 'setQ', payload: q });
   };
-  const toggleModal = photo => {
-    setIsOpened(prev => !prev);
+  const toggleModal = selectedPhoto => {
+    dispatch({ type: 'toggleModal', payload: selectedPhoto });
     if (isOpened) {
       toast.success('Wow what a beauty 😁');
     } else {
@@ -132,9 +136,7 @@ export const App = () => {
           <ImageGallery
             photos={photos}
             handleLikes={handleLikes}
-            toggleModal={() => {
-              setIsOpened(!isOpened);
-            }}
+            toggleModal={toggleModal}
           />
         )}
         {total > photos.length ? (
