@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { FcLike } from 'react-icons/fc';
 import {
@@ -16,14 +16,13 @@ import {
 import propTypes from 'prop-types';
 
 export const Modal = ({ selectedPhoto, close, next, back }) => {
-  const handleKeyDown = e => {
-    if (e.key === 'Escape') {
-      close();
-      toast.info('Modal closed by Escape');
-    }
-  };
-
   useEffect(() => {
+    const handleKeyDown = e => {
+      if (e.key === 'Escape') {
+        close();
+        toast.info('Modal closed by Escape');
+      }
+    };
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
