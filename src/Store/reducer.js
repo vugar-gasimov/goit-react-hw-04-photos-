@@ -1,4 +1,3 @@
-import React from 'react';
 export const initialState = {
   loading: false,
   error: null,
@@ -13,7 +12,6 @@ export const initialState = {
 };
 
 const photosReducer = (state, action) => {
-  console.log(action);
   const { type, payload } = action;
 
   switch (type) {
@@ -53,10 +51,38 @@ const photosReducer = (state, action) => {
       };
     case 'toggleModal':
       return { ...state, isOpened: !state.isOpen, selectedPhoto: payload };
+    case 'handleLikes':
+      return {
+        ...state,
+        photos: state.photos.map(el =>
+          el.id === action.payload.id ? { ...el, likes: el.likes + 1 } : el
+        ),
+      };
+
+    case 'handleNext':
+      return {
+        ...state,
+        currentPhotoIndex: (state.currentPhotoIndex + 1) % state.photos.length,
+        selectedPhoto:
+          state.photos[(state.currentPhotoIndex + 1) % state.photos.length],
+      };
+
+    case 'handleBack':
+      return {
+        ...state,
+        currentPhotoIndex: (state.currentPhotoIndex - 1) % state.photos.length,
+        selectedPhoto:
+          state.photos[(state.currentPhotoIndex - 1) % state.photos.length],
+      };
+
+    case 'closeModal':
+      return {
+        ...state,
+        isOpened: false,
+      };
     default:
       return state;
   }
-  return <div>reducer</div>;
 };
 
-export default reducer;
+export default photosReducer;

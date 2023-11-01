@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from 'react';
+import React, { useContext, useEffect, useState, useReducer } from 'react';
 import { ImageGallery } from './Image-finder/ImageGallery';
 import { Searchbar } from './Image-finder/Searchbar';
 import { LoadMoreButton } from './Image-finder/Button';
@@ -8,13 +8,15 @@ import { toast } from 'react-toastify';
 import { Blocks } from 'react-loader-spinner';
 
 import {
-  AppContainer,
-  TitleContainer,
   ContentContainer,
   GalleryTitle,
   LoaderContainer,
+  LoginForm,
+  InputField,
+  LoginButton,
 } from './App.Styled';
-import { initialState, photosReducer } from 'Store/reducer';
+import photosReducer, { initialState } from '../Store/reducer';
+import { MyContext } from 'Context/ContextProvider';
 
 export const App = () => {
   const [state, dispatch] = useReducer(photosReducer, initialState);
@@ -28,10 +30,11 @@ export const App = () => {
     page,
     per_page,
     q,
-    currentPhotoIndex,
   } = state;
+  const { user, isLoggedIn, login, logout } = useContext(MyContext);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   useEffect(() => {
-    console.log('componentDidMount');
     const getPhotos = async ({ page, q }) => {
       dispatch({ type: 'leading', payload: true });
       try {
@@ -41,36 +44,36 @@ export const App = () => {
           q,
         });
         if (response.total === undefined || response.total <= 0) {
-          setError('Total count is missing or invalid');
+          dispatch({
+            type: 'error',
+            payload: 'Total count is missing or invalid',
+          });
+          toast.error('Total count is missing or invalid');
           dispatch({ type: 'leading', payload: false });
 
           toast.error('Total count is missing or invalid');
         } else {
-          // setPhotos(prev => [...prev, ...response.hits]);
-          dispatch({ type: 'setPhotos', payload: photos });
-          // setTotal(response.total);
+          dispatch({ type: 'setPhotos', payload: response.hits });
+
           dispatch({ type: 'setTotal', payload: response.total });
-          // setLoading(false);
           dispatch({ type: 'leading', payload: false });
         }
       } catch (error) {
-        // setError(error.message);
         dispatch({ type: 'error', payload: error.message });
         toast.error(error.message);
       } finally {
-        // setLoading(false);
         dispatch({ type: 'loading', payload: false });
       }
     };
-    getPhotos() && q;
-  }, [page, q]);
+    getPhotos({ page, q });
+  }, [page, q, per_page]);
 
   useEffect(() => {
     error && toast.error(error);
   }, [error]);
 
   const handleLoadMore = () => {
-    dispatch({ type: loadMore });
+    dispatch({ type: 'loadMore' });
   };
 
   const handleSetQuery = q => {
@@ -85,18 +88,16 @@ export const App = () => {
     }
     return {
       isOpened,
-      currentPhotoIndex: photos.indexOf(photo),
+      currentPhotoIndex: photos.indexOf(selectedPhoto),
     };
   };
 
   const handleLikes = photo => {
-    setPhotos(prev =>
-      prev.map(el => (el.id === photo.id ? { ...el, likes: el.likes + 1 } : el))
-    );
+    dispatch({ type: 'handleLikes', payload: photo });
   };
   const handleNext = () => {
     if (Array.isArray(photos) && photos.length > 0) {
-      setCurrentPhotoIndex((currentPhotoIndex + 1) % photos.length);
+      dispatch({ type: 'handleNext' });
     } else {
       console.error('No photos or invalid photos array!');
     }
@@ -104,54 +105,91 @@ export const App = () => {
 
   const handleBack = () => {
     if (Array.isArray(photos) && photos.length > 0) {
-      setCurrentPhotoIndex((currentPhotoIndex - 1) % photos.length);
+      dispatch({ type: 'handleBack' });
     } else {
       console.error('No photos or invalid photos array!');
     }
   };
+  const handleLogin = () => {
+    login(username, password);
+
+    setUsername('');
+    setPassword('');
+  };
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
-    <AppContainer>
-      <TitleContainer>React homework template</TitleContainer>
+    <div>
       <ContentContainer>
-        <Searchbar setQuery={handleSetQuery} />
-        {q && (
-          <GalleryTitle>
-            Image Gallery search request: {q} and results: {total}
-          </GalleryTitle>
-        )}
-        <h2>{error}</h2>
-        {loading && !photos.length ? (
-          <LoaderContainer>
-            <Blocks
-              visible={true}
-              height="80"
-              width="80"
-              ariaLabel="blocks-loading"
-              wrapperStyle={{}}
-              wrapperClass="blocks-wrapper"
-            />
-          </LoaderContainer>
+        {!isLoggedIn ? (
+          <div>
+            <LoginForm>
+              <InputField
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+              />
+              <InputField
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <LoginButton onClick={handleLogin}>Login</LoginButton>
+            </LoginForm>
+          </div>
         ) : (
-          <ImageGallery
-            photos={photos}
-            handleLikes={handleLikes}
-            toggleModal={toggleModal}
-          />
+          <div>
+            <div>
+              <Searchbar setQuery={handleSetQuery}></Searchbar>
+              <GalleryTitle>Welcome, {user}!</GalleryTitle>
+              <LoginButton onClick={handleLogout}>Logout</LoginButton>
+              {q && (
+                <GalleryTitle>
+                  Image Gallery search request: {q} and results: {total}
+                </GalleryTitle>
+              )}
+              <h2>{error}</h2>
+              {loading && !photos.length ? (
+                <LoaderContainer>
+                  <Blocks
+                    visible={true}
+                    height="250"
+                    width="250"
+                    ariaLabel="blocks-loading"
+                    wrapperStyle={{}}
+                    wrapperClass="blocks-wrapper"
+                  />
+                </LoaderContainer>
+              ) : (
+                <ImageGallery
+                  photos={photos}
+                  handleLikes={handleLikes}
+                  toggleModal={toggleModal}
+                />
+              )}
+              {total > photos.length ? (
+                <LoadMoreButton loading={loading} onClick={handleLoadMore} />
+              ) : null}
+              {isOpened && selectedPhoto ? (
+                <Modal
+                  close={() => dispatch({ type: 'closeModal' })}
+                  selectedPhoto={selectedPhoto}
+                  next={handleNext}
+                  back={handleBack}
+                  changePhoto={index =>
+                    dispatch({ type: 'changePhoto', payload: index })
+                  }
+                />
+              ) : null}
+            </div>
+          </div>
         )}
-        {total > photos.length ? (
-          <LoadMoreButton loading={loading} onClick={handleLoadMore} />
-        ) : null}
-        {isOpened && selectedPhoto ? (
-          <Modal
-            close={() => setIsOpened(false)}
-            selectedPhoto={selectedPhoto}
-            next={handleNext}
-            back={handleBack}
-            changePhoto={index => setCurrentPhotoIndex(index)}
-          />
-        ) : null}
       </ContentContainer>
-    </AppContainer>
+    </div>
   );
 };
